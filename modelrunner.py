@@ -42,6 +42,7 @@ class ModelRunner:
                 Common.load_vocab_from_dict(target_to_count, add_values=[Common.PAD, Common.UNK, Common.SOS],
                                             max_size=config.TARGET_VOCAB_MAX_SIZE)
             print('Loaded target word vocab. size: %d' % self.target_vocab_size)
+            print(target_to_count, self.target_to_index)
 
             self.node_to_index, self.index_to_node, self.nodes_vocab_size = \
                 Common.load_vocab_from_dict(node_to_count, add_values=[Common.PAD, Common.UNK], max_size=None)
@@ -267,8 +268,9 @@ class ModelRunner:
 
         elapsed = int(time.time() - eval_start_time)
         precision, recall, f1 = calculate_results(true_positive, false_positive, false_negative)
-        files_rouge = FilesRouge(predicted_file_name, ref_file_name)
-        rouge = files_rouge.get_scores(avg=True, ignore_empty=True)
+        # files_rouge = FilesRouge(predicted_file_name, ref_file_name)
+        # rouge = files_rouge.get_scores(avg=True, ignore_empty=True)
+        rouge = 0 # don't know what is it, does not run out of the box
         print("Evaluation time: %sh%sm%ss" % ((elapsed // 60 // 60), (elapsed // 60) % 60, elapsed % 60))
         return num_correct_predictions / total_predictions, precision, recall, f1, rouge
 
