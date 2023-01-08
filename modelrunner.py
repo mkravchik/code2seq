@@ -47,6 +47,7 @@ class ModelRunner:
             self.node_to_index, self.index_to_node, self.nodes_vocab_size = \
                 Common.load_vocab_from_dict(node_to_count, add_values=[Common.PAD, Common.UNK], max_size=None)
             print('Loaded nodes vocab. size: %d' % self.nodes_vocab_size)
+            print(node_to_count, self.node_to_index)
 
             self.model = Model(self.config, self.subtoken_vocab_size, self.target_vocab_size, self.nodes_vocab_size,
                                self.target_to_index)
@@ -113,35 +114,38 @@ class ModelRunner:
 
         for iteration in range(self.config.NUM_EPOCHS):
             pbar = tqdm.tqdm(total=self.num_training_examples)
-            for input_tensors in dataset:
-                target_lengths = input_tensors[reader.TARGET_LENGTH_KEY]
-                target_index = input_tensors[reader.TARGET_INDEX_KEY]
-                batch_size = tf.shape(target_index)[0]
-                with tf.GradientTape() as tape:
-                    batched_contexts = self.model.run_encoder(input_tensors, is_training=True)
-                    outputs, _ = self.model.run_decoder(batched_contexts, input_tensors, is_training=True)
+            try:
+                for input_tensors in dataset:
+                    target_lengths = input_tensors[reader.TARGET_LENGTH_KEY]
+                    target_index = input_tensors[reader.TARGET_INDEX_KEY]
+                    batch_size = tf.shape(target_index)[0]
+                    with tf.GradientTape() as tape:
+                        batched_contexts = self.model.run_encoder(input_tensors, is_training=True)
+                        outputs, _ = self.model.run_decoder(batched_contexts, input_tensors, is_training=True)
 
-                    logits = outputs.rnn_output  # (batch, max_output_length, dim * 2 + rnn_size)
-                    crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=target_index, logits=logits)
-                    target_words_nonzero = tf.sequence_mask(target_lengths + 1,
-                                                            maxlen=self.config.MAX_TARGET_PARTS + 1, dtype=tf.float32)
-                    loss = tf.reduce_sum(crossent * target_words_nonzero) / tf.cast(batch_size, dtype=tf.float32)
+                        logits = outputs.rnn_output  # (batch, max_output_length, dim * 2 + rnn_size)
+                        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=target_index, logits=logits)
+                        target_words_nonzero = tf.sequence_mask(target_lengths + 1,
+                                                                maxlen=self.config.MAX_TARGET_PARTS + 1, dtype=tf.float32)
+                        loss = tf.reduce_sum(crossent * target_words_nonzero) / tf.cast(batch_size, dtype=tf.float32)
 
-                gradients = tape.gradient(loss, self.model.trainable_variables)
-                if self.config.USE_MOMENTUM:
-                    clipped_gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=5)
-                optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
+                    gradients = tape.gradient(loss, self.model.trainable_variables)
+                    if self.config.USE_MOMENTUM:
+                        clipped_gradients, _ = tf.clip_by_global_norm(gradients, clip_norm=5)
+                    optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
 
-                sum_loss += loss
-                batch_num += 1
+                    sum_loss += loss
+                    batch_num += 1
 
-                if batch_num % self.num_batches_to_log == 0:
-                    self.trace(pbar, sum_loss, batch_num, multi_batch_start_time)
-                    sum_loss = 0
-                    multi_batch_start_time = time.time()
+                    if batch_num % self.num_batches_to_log == 0:
+                        self.trace(pbar, sum_loss, batch_num, multi_batch_start_time)
+                        sum_loss = 0
+                        multi_batch_start_time = time.time()
 
-                pbar.update(self.config.BATCH_SIZE)
-                sys.stdout.flush()
+                    pbar.update(self.config.BATCH_SIZE)
+                    sys.stdout.flush()
+            except Exception as e:
+                print(f'Something is wrong, {e}')
 
             # the end of an epoch
             epochs_trained += 1

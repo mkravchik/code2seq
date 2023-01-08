@@ -7,7 +7,7 @@
 #   on the final (held-out) test set, change 'val' to 'test'.
 type=dataset #java-large-model
 dataset_name=dataset # java-large
-data_dir=../cppminer/out1/data/dataset # data/java-large
+data_dir=../cppminer/out_fixed_func_name_windows/data/dataset #../cppminer/out_fixed_func_name/data/dataset # data/java-large
 data=${data_dir}/${dataset_name}
 val_data=${data_dir}/${dataset_name}.val.c2s
 test_data=${data_dir}/${dataset_name}.test.c2s
